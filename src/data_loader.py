@@ -1,0 +1,106 @@
+import pandas as pd
+import json
+import requests
+import datetime
+from datetime import timedelta
+import headers as hd
+from requests.auth import HTTPBasicAuth
+
+
+class DataLoader(object):
+    """ Класс реализует методы необходимые
+        для обновления данных сроков поставок
+    """
+    def __init__(self):
+        self._headers = {
+            'Content-type': 'application/json',
+        }
+        self._data = {
+            "НачалоПериода": "date_from",
+            "КонецПериода":  "date_to",
+            "ВидПоставкиТоваров": hd.DELIVERY_TYPE['free_balances']
+        }
+
+    def __load_data_from_api(self, service_url):
+        response = requests.post(
+            service_url,
+            auth=HTTPBasicAuth('Web', 'WebMarket'),
+            data=json.dumps(self._data),
+            headers=self._headers
+        )
+        return response.json()
+
+    @staticmethod
+    def __add_is_from_supplier(data_frame, key):
+        data_frame['IsFromSupplier'] = pd.Series(
+            [key for _ in range(len(data_frame.index))]
+        )
+
+    def __load_deliveries(self, delivery_type, supplier):
+        self._data["ВидПоставкиТоваров"] = delivery_type
+        delivery = pd.DataFrame(
+            self.__load_data_from_api(hd.URL['url_del_time'])
+        )
+        self.__add_is_from_supplier(delivery, supplier)
+        return delivery
+
+    @staticmethod
+    def __create_cutdate(deliv, deliv_features):
+        deliv['cut_date'] = pd.to_datetime(
+            deliv_features,
+            format=hd.DATE_FORMAT['from_service']
+        )
+
+    def __update_datasets(self, deliv_old, deliv_new):
+        # Обрежим устаревшую неделю
+        first_date = datetime.datetime.strptime(
+            deliv_old.values.tolist()[0][0],
+            hd.DATE_FORMAT['from_service']
+        )
+        self.__create_cutdate(deliv_old, deliv_old.date_receipt)
+        time_peek = first_date + timedelta(days=1)
+        deliv_old = deliv_old[deliv_old['cut_date'] >= time_peek]
+        del deliv_old['cut_date']
+
+        # Сделаем смещение на новую неделю
+        deliv_new = deliv_old.append(deliv_new)
+        deliv_new.to_csv(hd.PATH_DATA['delivery_old.csv'], index=False)
+
+        return deliv_new
+
+    def load_data(self):
+        # Заружаем старый датасет со сроками поставок
+        deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
+
+        # Обновим дату загружаемых данных
+        lst = datetime.datetime.strptime(
+            deliv_old.values.tolist()[-1][0],
+            hd.DATE_FORMAT['from_service']
+        )
+        self._data["НачалоПериода"] = str(
+            datetime.datetime.strftime(
+                lst+timedelta(days=1),
+                hd.DATE_FORMAT['to_service']
+            )
+        )
+        self._data["КонецПериода"] = str(
+            (datetime.date.today()+timedelta(days=1)).strftime(
+                hd.DATE_FORMAT['to_service']
+            )
+        )
+
+        try:
+            # Получаем json-файлы с обовленными данными --> DataFrames
+            deliv_sup = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['fabricator'], supplier=1)
+            # deliv_free = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['free_balances'], supplier=0)
+            # deliv_new = deliv_free.append(deliv_sup)
+
+            # Сделаем смещение train_old на train_new
+            deliv = self.__update_datasets(deliv_old, deliv_sup)
+
+            print(hd.LOG_MESSAGES['successful_download'])
+            return deliv, True
+
+        except ValueError:
+            print(hd.LOG_MESSAGES['empty_new_data'])
+            return deliv_old, False
