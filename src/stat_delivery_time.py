@@ -81,6 +81,18 @@ class StatDeliveryTime(object):
             stat['PlacementFromId'] != stat['PlacementToId']
         ]
 
+    @staticmethod
+    def __add_for_graphics(stat, lst_date):
+        stat['date'] = time.mktime(
+            datetime.datetime.strptime(lst_date, "%d.%m.%Y %H:%M:%S").timetuple()
+        ) * 1000
+
+        stat['isArrivalOnly'] = True
+        stat['lowDates'] = np.maximum(stat.p10Dates, stat.lowDates)
+        stat['highDates'] = np.maximum(stat.highDates, stat.lowDates)
+
+        return stat
+
     def __prepare_df(self, delivery):
         self.__object_to_date(
             delivery, delivery.date_receipt,
@@ -218,11 +230,7 @@ class StatDeliveryTime(object):
             grid.append(statistics)
 
         stat = pd.DataFrame(np.vstack(grid), columns = index_cols)
-        stat['date'] = time.mktime(datetime.datetime.strptime(lst_date, "%d.%m.%Y %H:%M:%S").timetuple()) * 1000
-
-        stat['isArrivalOnly'] = True
-        stat['lowDates'] = np.maximum(stat.p10Dates, stat.lowDates)
-        stat['highDates'] = np.maximum(stat.highDates, stat.lowDates)
+        stat = self.__add_for_graphics(stat, lst_date)
 
         # Сохраним и отправим на 1hmm посчитанную статистику
         stat.to_json(hd.PATH_DATA['stat_graph.json'], orient='records')

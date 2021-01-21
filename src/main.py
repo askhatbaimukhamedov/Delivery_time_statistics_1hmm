@@ -15,8 +15,8 @@ class PreProcessingError(Exception):
 
 def main():
     ts = time.time()
-    # data_loader = loader.DataLoader()
-    # delivery_time = deliver.StatDeliveryTime()
+    data_loader = loader.DataLoader()
+    delivery_time = deliver.StatDeliveryTime()
 
     print(
         hd.LOG_MESSAGES['start_service'],
@@ -39,8 +39,8 @@ def main():
 
 
 if __name__ == '__main__':
-    data_loader = loader.DataLoader()
-    delivery_time = deliver.StatDeliveryTime()
+    # data_loader = loader.DataLoader()
+    # delivery_time = deliver.StatDeliveryTime()
     while True:
         main()
         time.sleep(hd.SERVICE_DELAY['one_week'])
