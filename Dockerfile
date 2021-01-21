@@ -10,6 +10,6 @@ COPY requirements.txt /opt/project/requirements.txt
 WORKDIR /opt/project/
 RUN pip install -r requirements.txt
 COPY . /opt/project/
-VOLUME /opt/project/datasets
 
+VOLUME /datasets
 CMD ["python", "/opt/project/src/main.py"]

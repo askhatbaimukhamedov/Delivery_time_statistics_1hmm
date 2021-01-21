@@ -2,7 +2,9 @@
 URL = {
     'url_del_time':          'http://185.63.190.188/trade82new/hs/Service/AIExchange/ВремяПоставкиТоваров',
     'url_stat_to_1hmm':      'https://hypermarketmebel.ru/api/product/importDeliveryTimes/?token=aG1tQWNjZXNzVG9rZW4=',
-    'url_stat_to_1hmm_test': 'http://ash.dev.1hmm.ru/api/product/importDeliveryTimes/?token=aG1tQWNjZXNzVG9rZW4='
+    'url_stat_to_1hmm_test': 'http://ash.dev.1hmm.ru/api/product/importDeliveryTimes/?token=aG1tQWNjZXNzVG9rZW4=',
+    'url_for_graphics':      'https://hypermarketmebel.ru/tools/importDeliveryTime.php',
+    'url_for_graphics_test': 'http://star.dev.1hmm.ru/tools/importDeliveryTime.php'
 }
 
 # Типы поставок товаров
@@ -26,14 +28,30 @@ SERVICE_DELAY = {
 
 # Пути
 PATH_DATA = {
-    'statistics.json': '../service_files/statistics.json',
+    'statistics.json':  '../service_files/statistics.json',
+    'stat_graph.json':  '../service_files/stat_graph.json',
     'delivery_old.csv': '../datasets/delivery_time.csv',
+    'graphics_old.csv': '../datasets/graphics.csv',
 }
 
 # Форматы даты
 DATE_FORMAT = {
     'from_service': "%Y-%m-%dT%H:%M:%S",
     'to_service':   "%d.%m.%Y %H:%M:%S"
+}
+
+# Процентили для расчета статистики
+PERCENTILE = {
+    '10percentile':  10,
+    '20percentile':  20,
+    '30percentile':  30,
+    '40percentile':  40,
+    '50percentile':  50,
+    '60percentile':  60,
+    '70percentile':  70,
+    '80percentile':  80,
+    '90percentile':  90,
+    '100percentile': 100,
 }
 
 # Логи работы сервиса

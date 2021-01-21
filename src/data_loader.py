@@ -16,8 +16,8 @@ class DataLoader(object):
             'Content-type': 'application/json',
         }
         self._data = {
-            "НачалоПериода": "date_from",
-            "КонецПериода":  "date_to",
+            "НачалоПериода": "data_from",
+            "КонецПериода": "data_to",
             "ВидПоставкиТоваров": hd.DELIVERY_TYPE['free_balances']
         }
 
@@ -58,7 +58,7 @@ class DataLoader(object):
             hd.DATE_FORMAT['from_service']
         )
         self.__create_cutdate(deliv_old, deliv_old.date_receipt)
-        time_peek = first_date + timedelta(days=1)
+        time_peek = first_date + timedelta(weeks=1)
         deliv_old = deliv_old[deliv_old['cut_date'] >= time_peek]
         del deliv_old['cut_date']
 
@@ -69,7 +69,7 @@ class DataLoader(object):
         return deliv_new
 
     def load_data(self):
-        # Заружаем старый датасет со сроками поставок
+        # Заружаем старый датасет со сроками поставок + для графиков на 1hmm
         deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
 
         # Обновим дату загружаемых данных
@@ -89,17 +89,33 @@ class DataLoader(object):
             )
         )
 
+        # Удалить после теста
+        # first = datetime.datetime.strptime(self._data["НачалоПериода"], hd.DATE_FORMAT['to_service'])
+        # last = datetime.datetime.strptime(self._data["КонецПериода"], hd.DATE_FORMAT['to_service'])
+        #
+        # self._data["НачалоПериода"] = str(
+        #     (first + timedelta(weeks=1)).strftime(
+        #         hd.DATE_FORMAT['to_service']
+        #     )
+        # )
+        #
+        # self._data["КонецПериода"] = str(
+        #     (last + timedelta(weeks=1)).strftime(
+        #         hd.DATE_FORMAT['to_service']
+        #     )
+        # )
+
         try:
             # Получаем json-файлы с обовленными данными --> DataFrames
             deliv_sup = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['fabricator'], supplier=1)
-            # deliv_free = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['free_balances'], supplier=0)
-            # deliv_new = deliv_free.append(deliv_sup)
+            deliv_free = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['free_balances'], supplier=0)
+            deliv_new = deliv_free.append(deliv_sup)
 
             # Сделаем смещение train_old на train_new
-            deliv = self.__update_datasets(deliv_old, deliv_sup)
+            deliv = self.__update_datasets(deliv_old, deliv_new)
 
             print(hd.LOG_MESSAGES['successful_download'])
-            return deliv, True
+            return deliv, True, self._data["КонецПериода"]
 
         except ValueError:
             print(hd.LOG_MESSAGES['empty_new_data'])

@@ -15,8 +15,8 @@ class PreProcessingError(Exception):
 
 def main():
     ts = time.time()
-    data_loader = loader.DataLoader()
-    delivery_time = deliver.StatDeliveryTime()
+    # data_loader = loader.DataLoader()
+    # delivery_time = deliver.StatDeliveryTime()
 
     print(
         hd.LOG_MESSAGES['start_service'],
@@ -25,7 +25,7 @@ def main():
     )
 
     # Загружаем ежедневные исторические данные
-    deliv, is_new_data = data_loader.load_data()
+    deliv, is_new_data, lst_date = data_loader.load_data()
 
     if is_new_data:
         # Отправим статистику по срокам доставок
@@ -39,6 +39,8 @@ def main():
 
 
 if __name__ == '__main__':
+    data_loader = loader.DataLoader()
+    delivery_time = deliver.StatDeliveryTime()
     while True:
         main()
         time.sleep(hd.SERVICE_DELAY['one_week'])
