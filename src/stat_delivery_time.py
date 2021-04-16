@@ -4,12 +4,13 @@ import headers as hd
 import datetime
 import time
 import requests
+from requests.auth import HTTPBasicAuth
 
 
 class StatDeliveryTime(object):
     """ Класс реализует основные методы для расчета статистики
         по срокам доставок от производителей до складов компании
-        а также перемещения между складами компании
+        а также перемещения между складами компании + графики
     """
 
     def __init__(self):
@@ -26,10 +27,12 @@ class StatDeliveryTime(object):
         ]
 
     def __send_statistics(self, servie_url, path_json):
-        response = requests.get(
+        response = requests.post(
             hd.URL[servie_url],
+            auth=HTTPBasicAuth('Web', 'WebMarket'),
             data=open(hd.PATH_DATA[path_json], 'rb'),
-            headers=self._headers
+            headers=self._headers,
+            timeout=540
         )
         if response.ok:
             print(hd.LOG_MESSAGES['send_statistics'])
@@ -75,11 +78,9 @@ class StatDeliveryTime(object):
         )
 
     @staticmethod
-    def __drop_unnecessary(stat):
-        stat = stat.loc[stat['PlacementFromId'] != hd.BAD_GUID]
-        return stat.loc[
-            stat['PlacementFromId'] != stat['PlacementToId']
-        ]
+    def __drop_unnecessary(stat, place_from='PlacementFromId', place_to='PlacementToId'):
+        stat = stat.loc[stat[place_from] != hd.BAD_GUID]
+        return stat.loc[stat[place_from] != stat[place_to]]
 
     @staticmethod
     def __add_for_graphics(stat, lst_date):
@@ -92,21 +93,6 @@ class StatDeliveryTime(object):
         stat['highDates'] = np.maximum(stat.highDates, stat.lowDates)
 
         return stat
-
-    def __prepare_df(self, delivery):
-        self.__object_to_date(
-            delivery, delivery.date_receipt,
-            'date_receipt'
-        )
-        self.__object_to_date(
-            delivery, delivery.date_orders,
-            'date_orders'
-        )
-
-        delivery['difference'] = delivery.date_receipt - delivery.date_orders
-        self.__pick_days(delivery)
-
-        return delivery
 
     def __eval_percentile(self, delivery, list_by_group, p_min, p_max):
         deliv_min = delivery.groupby(list_by_group).agg(
@@ -153,63 +139,25 @@ class StatDeliveryTime(object):
             how='left'
         )
 
-    def get_statistics(self, delivery_time):
-        self.__make_offer(delivery_time)
-        delivery_time.drop(self._list_to_drop_deliv, axis=1, inplace=True)
-        delivery_time.rename(
-            columns={
-                'warehouse_guid':  'PlacementToId',
-                'fabricator_guid': 'PlacementFromId'
-            }, inplace=True
-        )
-
-        # Предварительная подготовка датасета
-        delivery_time = self.__prepare_df(delivery_time)
-
-        # Посчитаем статистику и отправим на сайт 1hmm
-        statistics = self.__eval_statistics(
-            delivery_time,
-            ['PlacementFromId', 'PlacementToId',
-             'IsFromSupplier', 'Offer']
-        )
-        stat_common = self.__eval_statistics(
-            delivery_time,
-            ['PlacementFromId', 'PlacementToId', 'IsFromSupplier']
-        )
-
-        # Подготовим итоговую статистику
-        statistics = statistics.append(stat_common)
-        statistics = self.__drop_unnecessary(statistics)
-
-        # Сохраним и отправим на 1hmm посчитанную статистику
-        statistics.to_json(hd.PATH_DATA['statistics.json'], orient='records')
-        self.__send_statistics('url_stat_to_1hmm', 'statistics.json')
-
-    def get_stat_for_graphics(self, delivery, lst_date):
+    def __prepare_df(self, delivery):
         delivery = delivery.loc[delivery['IsFromSupplier'] == 1]
-        delivery.drop(
-            self._list_to_drop_graph,
-            axis=1, inplace=True
-        )
+        delivery.drop(self._list_to_drop_graph, axis=1, inplace=True)
         delivery.rename(
             columns={
-                'warehouse_guid':  'warehouseOuterId',
+                'warehouse_guid': 'warehouseOuterId',
                 'fabricator_guid': 'guid_manufactorer'
             }, inplace=True
         )
-
-        # Предварительная подготовка датасета
-        delivery = self.__prepare_df(delivery)
+        self.__object_to_date(delivery, delivery.date_receipt, 'date_receipt')
+        self.__object_to_date(delivery, delivery.date_orders, 'date_orders')
+        delivery['difference'] = delivery.date_receipt - delivery.date_orders
+        self.__pick_days(delivery)
+        delivery['warehouse_id'] = delivery['warehouse_id'].astype(int)
         delivery = delivery.loc[delivery['delivery'] > 0]
+        return delivery
 
-        # Создадим таблицу со с следующими предикторами
-        index_cols = [
-            'guid_manufactorer', 'warehouseOuterId',
-            'warehouse_id', 'p10Dates', 'highDates', 'lowDates'
-        ]
-
+    def __create_aggregation(self, delivery):
         grid = []
-
         for fabricator in delivery['guid_manufactorer'].unique():
             cur_fabricator = delivery.loc[delivery['guid_manufactorer'] == fabricator]
 
@@ -228,8 +176,56 @@ class StatDeliveryTime(object):
             statistics = self.__common_merge(statistics, deliv_mean)
 
             grid.append(statistics)
+        return grid
 
+    def get_statistics(self, delivery_time):
+        self.__make_offer(delivery_time)
+        delivery_time.drop(self._list_to_drop_deliv, axis=1, inplace=True)
+        delivery_time.rename(
+            columns={
+                'warehouse_guid':  'PlacementToId',
+                'fabricator_guid': 'PlacementFromId'
+            }, inplace=True
+        )
+        # Предварительная подготовка датасета
+        delivery_time = self.__prepare_df(delivery_time)
+
+        # Посчитаем статистику и отправим на сайт 1hmm
+        statistics = self.__eval_statistics(
+            delivery_time,
+            ['PlacementFromId', 'PlacementToId',
+             'IsFromSupplier', 'Offer']
+        )
+        stat_common = self.__eval_statistics(
+            delivery_time,
+            ['PlacementFromId', 'PlacementToId', 'IsFromSupplier']
+        )
+
+        # Подготовим итоговую статистику
+        statistics = statistics.append(stat_common)
+        statistics = self.__drop_unnecessary(statistics)
+
+        # Сохраним и отправим на 1hmm и в 1с посчитанную статистику
+        statistics.to_json(hd.PATH_DATA['statistics.json'], orient='records')
+        self.__send_statistics('url_stat_to_1hmm', 'statistics.json')
+        self.__send_statistics('url_stat_to_1с', 'statistics.json')
+
+    def get_stat_for_graphics(self, delivery, lst_date):
+        # Предварительная подготовка датасета
+        delivery = self.__prepare_df(delivery)
+
+        # Создадим таблицу со с следующими предикторами
+        index_cols = [
+            'guid_manufactorer', 'warehouseOuterId',
+            'warehouse_id', 'p10Dates', 'highDates', 'lowDates'
+        ]
+        grid = self.__create_aggregation(delivery)
         stat = pd.DataFrame(np.vstack(grid), columns = index_cols)
+        stat = self.__drop_unnecessary(
+            stat,
+            place_from='guid_manufactorer',
+            place_to='warehouseOuterId'
+        )
         stat = self.__add_for_graphics(stat, lst_date)
 
         # Сохраним и отправим на 1hmm посчитанную статистику

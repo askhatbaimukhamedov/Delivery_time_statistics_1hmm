@@ -2,6 +2,7 @@
 URL = {
     'url_del_time':          'http://185.63.190.188/trade82new/hs/Service/AIExchange/ВремяПоставкиТоваров',
     'url_stat_to_1hmm':      'https://hypermarketmebel.ru/api/product/importDeliveryTimes/?token=aG1tQWNjZXNzVG9rZW4=',
+    'url_stat_to_1с':        'http://185.63.190.188/trade82new/hs/Service/AIExchange/importDeliveryTimes',
     'url_stat_to_1hmm_test': 'http://ash.dev.1hmm.ru/api/product/importDeliveryTimes/?token=aG1tQWNjZXNzVG9rZW4=',
     'url_for_graphics':      'https://hypermarketmebel.ru/tools/importDeliveryTime.php',
     'url_for_graphics_test': 'http://star.dev.1hmm.ru/tools/importDeliveryTime.php'

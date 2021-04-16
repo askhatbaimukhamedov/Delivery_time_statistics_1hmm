@@ -16,8 +16,8 @@ class DataLoader(object):
             'Content-type': 'application/json',
         }
         self._data = {
-            "НачалоПериода": "data_from",
-            "КонецПериода": "data_to",
+            "НачалоПериода": "date_from",
+            "КонецПериода": "date_to",
             "ВидПоставкиТоваров": hd.DELIVERY_TYPE['free_balances']
         }
 
@@ -26,7 +26,8 @@ class DataLoader(object):
             service_url,
             auth=HTTPBasicAuth('Web', 'WebMarket'),
             data=json.dumps(self._data),
-            headers=self._headers
+            headers=self._headers,
+            timeout=540
         )
         return response.json()
 
@@ -51,8 +52,27 @@ class DataLoader(object):
             format=hd.DATE_FORMAT['from_service']
         )
 
+    def __update_date(self, data_frame):
+        lst = datetime.datetime.strptime(
+            data_frame.values.tolist()[-1][0],
+            hd.DATE_FORMAT['from_service']
+        )
+        self._data["НачалоПериода"] = str(
+            datetime.datetime.strftime(
+                lst + timedelta(days=1),
+                hd.DATE_FORMAT['to_service']
+            )
+        )
+        self._data["КонецПериода"] = str(
+            (datetime.date.today() + timedelta(days=1)).strftime(
+                hd.DATE_FORMAT['to_service']
+            )
+        )
+
     def __update_datasets(self, deliv_old, deliv_new):
-        # Обрежим устаревшую неделю
+        deliv_old.sort_values(by=['date_receipt'], inplace=True)
+        deliv_new.sort_values(by=['date_receipt'], inplace=True)
+
         first_date = datetime.datetime.strptime(
             deliv_old.values.tolist()[0][0],
             hd.DATE_FORMAT['from_service']
@@ -62,48 +82,32 @@ class DataLoader(object):
         deliv_old = deliv_old[deliv_old['cut_date'] >= time_peek]
         del deliv_old['cut_date']
 
-        # Сделаем смещение на новую неделю
         deliv_new = deliv_old.append(deliv_new)
         deliv_new.to_csv(hd.PATH_DATA['delivery_old.csv'], index=False)
 
         return deliv_new
+
+    def __manual_loading_lost_data(self):
+        first = datetime.datetime.strptime(self._data["НачалоПериода"], hd.DATE_FORMAT['to_service'])
+        last = datetime.datetime.strptime(self._data["КонецПериода"], hd.DATE_FORMAT['to_service'])
+
+        self._data["НачалоПериода"] = str(
+            (first + timedelta(weeks=1)).strftime(hd.DATE_FORMAT['to_service'])
+        )
+
+        self._data["КонецПериода"] = str(
+            (last + timedelta(weeks=1)).strftime(hd.DATE_FORMAT['to_service'])
+        )
 
     def load_data(self):
         # Заружаем старый датасет со сроками поставок + для графиков на 1hmm
         deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
 
         # Обновим дату загружаемых данных
-        lst = datetime.datetime.strptime(
-            deliv_old.values.tolist()[-1][0],
-            hd.DATE_FORMAT['from_service']
-        )
-        self._data["НачалоПериода"] = str(
-            datetime.datetime.strftime(
-                lst+timedelta(days=1),
-                hd.DATE_FORMAT['to_service']
-            )
-        )
-        self._data["КонецПериода"] = str(
-            (datetime.date.today()+timedelta(days=1)).strftime(
-                hd.DATE_FORMAT['to_service']
-            )
-        )
+        self.__update_date(deliv_old)
 
-        # Удалить после теста
-        # first = datetime.datetime.strptime(self._data["НачалоПериода"], hd.DATE_FORMAT['to_service'])
-        # last = datetime.datetime.strptime(self._data["КонецПериода"], hd.DATE_FORMAT['to_service'])
-        #
-        # self._data["НачалоПериода"] = str(
-        #     (first + timedelta(weeks=1)).strftime(
-        #         hd.DATE_FORMAT['to_service']
-        #     )
-        # )
-        #
-        # self._data["КонецПериода"] = str(
-        #     (last + timedelta(weeks=1)).strftime(
-        #         hd.DATE_FORMAT['to_service']
-        #     )
-        # )
+        # Раскомментить в случае когда нужно собрать потерянные данные
+        # self.__manual_loading_lost_data()
 
         try:
             # Получаем json-файлы с обовленными данными --> DataFrames
@@ -119,4 +123,4 @@ class DataLoader(object):
 
         except ValueError:
             print(hd.LOG_MESSAGES['empty_new_data'])
-            return deliv_old, False
+            return deliv_old, False, self._data["КонецПериода"]
