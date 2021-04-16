@@ -26,7 +26,7 @@ class StatDeliveryTime(object):
             'item_charac_id', 'item_charac_guid', 'fabricator_id'
         ]
 
-    def __send_statistics(self, servie_url, path_json):
+    def __send_statistics(self, servie_url, path_json, logger):
         response = requests.post(
             hd.URL[servie_url],
             auth=HTTPBasicAuth('Web', 'WebMarket'),
@@ -35,7 +35,10 @@ class StatDeliveryTime(object):
             timeout=540
         )
         if response.ok:
-            print(hd.LOG_MESSAGES['send_statistics'])
+            if servie_url == hd.URL['url_for_graphics']:
+                logger.info(hd.LOG_MESSAGES['send_graphics'])
+            else:
+                print(hd.LOG_MESSAGES['send_statistics'])
 
     @staticmethod
     def __percentile(per_value):
@@ -178,7 +181,7 @@ class StatDeliveryTime(object):
             grid.append(statistics)
         return grid
 
-    def get_statistics(self, delivery_time):
+    def get_statistics(self, delivery_time, logger):
         self.__make_offer(delivery_time)
         delivery_time.drop(self._list_to_drop_deliv, axis=1, inplace=True)
         delivery_time.rename(
@@ -207,10 +210,10 @@ class StatDeliveryTime(object):
 
         # Сохраним и отправим на 1hmm и в 1с посчитанную статистику
         statistics.to_json(hd.PATH_DATA['statistics.json'], orient='records')
-        self.__send_statistics('url_stat_to_1hmm', 'statistics.json')
-        self.__send_statistics('url_stat_to_1с', 'statistics.json')
+        self.__send_statistics('url_stat_to_1hmm', 'statistics.json', logger)
+        self.__send_statistics('url_stat_to_1с', 'statistics.json', logger)
 
-    def get_stat_for_graphics(self, delivery, lst_date):
+    def get_stat_for_graphics(self, delivery, lst_date, logger):
         # Предварительная подготовка датасета
         delivery = self.__prepare_df(delivery)
 
@@ -230,4 +233,4 @@ class StatDeliveryTime(object):
 
         # Сохраним и отправим на 1hmm посчитанную статистику
         stat.to_json(hd.PATH_DATA['stat_graph.json'], orient='records')
-        self.__send_statistics('url_for_graphics', 'stat_graph.json')
+        self.__send_statistics('url_for_graphics', 'stat_graph.json', logger)

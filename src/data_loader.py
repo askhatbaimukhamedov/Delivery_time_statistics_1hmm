@@ -99,13 +99,12 @@ class DataLoader(object):
             (last + timedelta(weeks=1)).strftime(hd.DATE_FORMAT['to_service'])
         )
 
-    def load_data(self):
+    def load_data(self, logger):
         # Заружаем старый датасет со сроками поставок + для графиков на 1hmm
-        # deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
-        deliv_new = 'hello'
+        deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
 
         # Обновим дату загружаемых данных
-        # self.__update_date(deliv_old)
+        self.__update_date(deliv_old)
 
         # Раскомментить в случае когда нужно собрать потерянные данные
         # self.__manual_loading_lost_data()
@@ -115,15 +114,13 @@ class DataLoader(object):
             deliv_sup = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['fabricator'], supplier=1)
             deliv_free = self.__load_deliveries(delivery_type=hd.DELIVERY_TYPE['free_balances'], supplier=0)
             deliv_new = deliv_free.append(deliv_sup)
-            print("It's working!")
-            exit(0)
 
             # Сделаем смещение train_old на train_new
-            # deliv = self.__update_datasets(deliv_old, deliv_new)
+            deliv = self.__update_datasets(deliv_old, deliv_new)
 
-            print(hd.LOG_MESSAGES['successful_download'])
-            return deliv_new, True, self._data["КонецПериода"]
+            logger.info(hd.LOG_MESSAGES['successful_download'])
+            return deliv, True, self._data["КонецПериода"]
 
         except ValueError:
-            print(hd.LOG_MESSAGES['empty_new_data'])
-            return deliv_new, False, self._data["КонецПериода"]
+            logger.info(hd.LOG_MESSAGES['empty_new_data'])
+            return deliv_old, False, self._data["КонецПериода"]

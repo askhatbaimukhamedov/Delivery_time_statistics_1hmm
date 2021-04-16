@@ -33,6 +33,7 @@ PATH_DATA = {
     'stat_graph.json':  '../service_files/stat_graph.json',
     'delivery_old.csv': '../datasets/delivery_time.csv',
     'graphics_old.csv': '../datasets/graphics.csv',
+    'info_messages':    '../logs/info_messages.log'
 }
 
 # Форматы даты
@@ -56,14 +57,17 @@ PERCENTILE = {
 }
 
 # Логи работы сервиса
+BASE_FORMAT_LOG = '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s'
+INDENT_FORMAT_LOG = '\n'
+
 LOG_MESSAGES = {
-    'start_service':       '\nСтарт работы сервиса DELIVERY TIME STATISTICS:',
-    'stop_service':        '\nСтоп работы сервиса DELIVERY TIME STATISTICS:',
-    'operating_time':      '\nВремя работы сервиса: %s мин.',
-    'separating_line':     '\n' + '-' * 73 + '\n',
-    'successful_download': '\tДатасет со сроками доставок успешно загружен...',
-    'empty_new_data':      '\tЗа данный период нет новых данных...',
-    'send_statistics':     '\tСтатистика по срокам дотавок успешно отправлена...'
+    'service_name':        'DELIVERY TIME STATISTICS',
+    'start_service':       'Старт работы сервиса',
+    'stop_service':        'Стоп работы сервиса\n',
+    'successful_download': 'Датасет со сроками доставок успешно загружен',
+    'empty_new_data':      'За данный период нет новых данных',
+    'send_statistics':     'Статистика по срокам дотавок успешно отправлена на 1hmm и 1С',
+    'send_graphics':       'Статистика для формирования графиков успешно отправлена на 1hmm'
 }
 
 # Гуид производителя не отправляемый на 1hmm
