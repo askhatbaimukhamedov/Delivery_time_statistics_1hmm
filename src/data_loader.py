@@ -116,11 +116,6 @@ class DataLoader(object):
     def load_data(self, logger):
         # Заружаем старый датасет со сроками поставок + для графиков на 1hmm
         deliv_old = pd.read_sql(hd.CMD_DB['read_delivery_old'], self.__connect)
-        # deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
-
-        # Запишем обновленный датасет в базу
-        # self.__connect.execute(hd.CMD_DB['update_table_deliv_time'])
-        # deliv_old.to_sql('delivery_time', self.__connect, index=False)
 
         # Обновим дату загружаемых данных
         self.__update_date(deliv_old)
