@@ -1,13 +1,13 @@
 import os
 import sys
 import logging
-from logging.handlers import TimedRotatingFileHandler
 import time
 import data_loader as loader
 import stat_delivery_time as deliver
 import headers as hd
 import requests
 from requests.auth import HTTPBasicAuth
+from logging.handlers import TimedRotatingFileHandler
 
 
 class PreProcessingError(Exception):
@@ -20,7 +20,7 @@ class PreProcessingError(Exception):
 
 class ServiceLogger(object):
     """ Класс реализует логирование и
-        протоколирования работы сервиса
+        протоколирование работы сервиса
     """
     def __init__(self):
         self.LOG_FILE = hd.PATH_DATA['info_messages']

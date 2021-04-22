@@ -1,3 +1,19 @@
+# Сообщения о статусе работы сервиса
+LOG_MESSAGES = {
+    'service_name':        'DELIVERY TIME STATISTICS',
+    'start_service':       'Старт работы сервиса',
+    'stop_service':        'Стоп работы сервиса\n',
+    'successful_download': 'Датасет со сроками доставок успешно загружен',
+    'empty_new_data':      'За данный период нет новых данных',
+    'send_graphics':       'Статистика для формирования графиков успешно отправлена на 1hmm'
+}
+
+# Шаблоны необходимых SQL-запросов
+CMD_DB = {
+    'read_delivery_old':       'SELECT * from delivery_time',
+    'update_table_deliv_time': 'DROP TABLE IF EXISTS delivery_time',
+}
+
 # Урлы сервисов с данными + 1hmm
 URL = {
     'url_del_time':          'http://185.63.190.188/trade82new/hs/Service/AIExchange/ВремяПоставкиТоваров',
@@ -56,23 +72,9 @@ PERCENTILE = {
     '100percentile': 100,
 }
 
-# Логи работы сервиса
+# Формат логов
 BASE_FORMAT_LOG = '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s'
 INDENT_FORMAT_LOG = '\n'
-
-LOG_MESSAGES = {
-    'service_name':        'DELIVERY TIME STATISTICS',
-    'start_service':       'Старт работы сервиса',
-    'stop_service':        'Стоп работы сервиса\n',
-    'successful_download': 'Датасет со сроками доставок успешно загружен',
-    'empty_new_data':      'За данный период нет новых данных',
-    'send_graphics':       'Статистика для формирования графиков успешно отправлена на 1hmm'
-}
-
-CMD_DB = {
-    'read_delivery_old':       'SELECT * from delivery_time',
-    'update_table_deliv_time': 'DROP TABLE IF EXISTS delivery_time',
-}
 
 # Гуид производителя не отправляемый на 1hmm
 BAD_GUID = '00000000-0000-0000-0000-000000000000'
