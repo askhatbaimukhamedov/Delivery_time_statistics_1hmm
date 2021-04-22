@@ -39,7 +39,7 @@ class StatDeliveryTime(object):
 
     @staticmethod
     def __wrapper_writer_log(service_url, s_name, log):
-        if service_url == 'url_for_graphics':
+        if service_url != 'url_for_graphics':
             log.info(f'Статистика по срокам дотавок успешно отправлена --> {s_name}')
         else:
             log.info(hd.LOG_MESSAGES['send_graphics'])
