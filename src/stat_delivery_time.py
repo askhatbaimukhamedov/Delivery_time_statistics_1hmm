@@ -26,19 +26,16 @@ class StatDeliveryTime(object):
             'item_charac_id', 'item_charac_guid', 'fabricator_id'
         ]
 
-    def __send_statistics(self, service_url,
-                          s_name, path_json, logger):
+    def __send_statistics(self, url, path, log, s_name='1hmm'):
         response = requests.post(
-            hd.URL[service_url],
+            hd.URL[url],
             auth=HTTPBasicAuth('Web', 'WebMarket'),
-            data=open(hd.PATH_DATA[path_json], 'rb'),
+            data=open(hd.PATH_DATA[path], 'rb'),
             headers=self._headers,
             timeout=540
         )
         if response.ok:
-            self.__wrapper_writer_log(
-                service_url, s_name, logger
-            )
+            self.__wrapper_writer_log(url, s_name, log)
 
     @staticmethod
     def __wrapper_writer_log(service_url, s_name, log):
@@ -215,7 +212,7 @@ class StatDeliveryTime(object):
         # Сохраним и отправим на 1hmm и в 1с посчитанную статистику
         statistics.to_json(hd.PATH_DATA['statistics.json'], orient='records')
         self.__send_statistics('url_stat_to_1hmm', 'statistics.json', logger)
-        self.__send_statistics('url_stat_to_1с', 'statistics.json', logger)
+        self.__send_statistics('url_stat_to_1с', 'statistics.json', logger, s_name='1c')
 
     def get_stat_for_graphics(self, delivery, lst_date, logger):
         delivery = delivery.loc[delivery['IsFromSupplier'] == 1]

@@ -108,7 +108,6 @@ class DataLoader(object):
         self._data["НачалоПериода"] = str(
             (first + timedelta(weeks=1)).strftime(hd.DATE_FORMAT['to_service'])
         )
-
         self._data["КонецПериода"] = str(
             (last + timedelta(weeks=1)).strftime(hd.DATE_FORMAT['to_service'])
         )
