@@ -66,8 +66,12 @@ LOG_MESSAGES = {
     'stop_service':        'Стоп работы сервиса\n',
     'successful_download': 'Датасет со сроками доставок успешно загружен',
     'empty_new_data':      'За данный период нет новых данных',
-    'send_statistics':     'Статистика по срокам дотавок успешно отправлена на 1hmm и 1С',
     'send_graphics':       'Статистика для формирования графиков успешно отправлена на 1hmm'
+}
+
+CMD_DB = {
+    'read_delivery_old':       'SELECT * from delivery_time',
+    'update_table_deliv_time': 'DROP TABLE IF EXISTS delivery_time',
 }
 
 # Гуид производителя не отправляемый на 1hmm

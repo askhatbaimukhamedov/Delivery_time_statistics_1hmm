@@ -26,19 +26,26 @@ class StatDeliveryTime(object):
             'item_charac_id', 'item_charac_guid', 'fabricator_id'
         ]
 
-    def __send_statistics(self, servie_url, path_json, logger):
+    def __send_statistics(self, service_url,
+                          s_name, path_json, logger):
         response = requests.post(
-            hd.URL[servie_url],
+            hd.URL[service_url],
             auth=HTTPBasicAuth('Web', 'WebMarket'),
             data=open(hd.PATH_DATA[path_json], 'rb'),
             headers=self._headers,
             timeout=540
         )
         if response.ok:
-            if servie_url == hd.URL['url_for_graphics']:
-                logger.info(hd.LOG_MESSAGES['send_graphics'])
-            else:
-                print(hd.LOG_MESSAGES['send_statistics'])
+            self.__wrapper_writer_log(
+                service_url, s_name, logger
+            )
+
+    @staticmethod
+    def __wrapper_writer_log(service_url, s_name, log):
+        if service_url == 'url_for_graphics':
+            log.info(f'Статистика по срокам дотавок успешно отправлена --> {s_name}')
+        else:
+            log.info(hd.LOG_MESSAGES['send_graphics'])
 
     @staticmethod
     def __percentile(per_value):
@@ -109,7 +116,6 @@ class StatDeliveryTime(object):
         return deliv_min, deliv_max
 
     def __get_percentile(self, delivery, list_by_group):
-        delivery = delivery.loc[(delivery['delivery'] > 0)]
         deliv_sup = delivery.loc[(delivery['IsFromSupplier'] == 1)]
         deliv_warehouse = delivery.loc[(delivery['IsFromSupplier'] == 0)]
 
@@ -126,9 +132,7 @@ class StatDeliveryTime(object):
         return sup_min.append(ware_min), sup_max.append(ware_max)
 
     def __eval_statistics(self, delivery_time, list_by_group):
-        deliv_min, deliv_max = self.__get_percentile(
-            delivery_time, list_by_group
-        )
+        deliv_min, deliv_max = self.__get_percentile(delivery_time, list_by_group)
         self.__rename_drop_deliv(deliv_max, 'DaysTo')
         self.__rename_drop_deliv(deliv_min, 'DaysFrom')
 
@@ -142,20 +146,21 @@ class StatDeliveryTime(object):
             how='left'
         )
 
-    def __prepare_df(self, delivery):
-        delivery = delivery.loc[delivery['IsFromSupplier'] == 1]
-        delivery.drop(self._list_to_drop_graph, axis=1, inplace=True)
+    def __common_prepare_df(self, delivery, list_to_drop,
+                            new_warehouse_guid='warehouseOuterId',
+                            new_fabricator_guid='guid_manufactorer'):
+        delivery.drop(list_to_drop, axis=1, inplace=True)
         delivery.rename(
             columns={
-                'warehouse_guid': 'warehouseOuterId',
-                'fabricator_guid': 'guid_manufactorer'
+                'warehouse_guid': new_warehouse_guid,
+                'fabricator_guid': new_fabricator_guid
             }, inplace=True
         )
         self.__object_to_date(delivery, delivery.date_receipt, 'date_receipt')
         self.__object_to_date(delivery, delivery.date_orders, 'date_orders')
+
         delivery['difference'] = delivery.date_receipt - delivery.date_orders
         self.__pick_days(delivery)
-        delivery['warehouse_id'] = delivery['warehouse_id'].astype(int)
         delivery = delivery.loc[delivery['delivery'] > 0]
         return delivery
 
@@ -183,15 +188,14 @@ class StatDeliveryTime(object):
 
     def get_statistics(self, delivery_time, logger):
         self.__make_offer(delivery_time)
-        delivery_time.drop(self._list_to_drop_deliv, axis=1, inplace=True)
-        delivery_time.rename(
-            columns={
-                'warehouse_guid':  'PlacementToId',
-                'fabricator_guid': 'PlacementFromId'
-            }, inplace=True
-        )
+
         # Предварительная подготовка датасета
-        delivery_time = self.__prepare_df(delivery_time)
+        delivery_time = self.__common_prepare_df(
+            delivery_time,
+            self._list_to_drop_deliv,
+            new_warehouse_guid='PlacementToId',
+            new_fabricator_guid='PlacementFromId'
+        )
 
         # Посчитаем статистику и отправим на сайт 1hmm
         statistics = self.__eval_statistics(
@@ -214,8 +218,11 @@ class StatDeliveryTime(object):
         self.__send_statistics('url_stat_to_1с', 'statistics.json', logger)
 
     def get_stat_for_graphics(self, delivery, lst_date, logger):
+        delivery = delivery.loc[delivery['IsFromSupplier'] == 1]
+        delivery['warehouse_id'] = delivery['warehouse_id'].astype(int)
+
         # Предварительная подготовка датасета
-        delivery = self.__prepare_df(delivery)
+        delivery = self.__common_prepare_df(delivery, self._list_to_drop_graph)
 
         # Создадим таблицу со с следующими предикторами
         index_cols = [

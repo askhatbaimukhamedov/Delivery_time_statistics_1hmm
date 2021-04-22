@@ -8,9 +8,11 @@ RUN mkdir /opt/project
 COPY . /opt/project
 WORKDIR /opt/project
 
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
-
 COPY requirements.txt /opt/project/requirements.txt
+
+VOLUME /logs
+
+RUN pip install --upgrade pip \
+    pip install -r requirements.txt
 
 CMD ["python", "/opt/project/src/main.py"]

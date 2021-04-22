@@ -1,6 +1,7 @@
 import pandas as pd
 import json
 import requests
+import sqlite3 as db
 import datetime
 from datetime import timedelta
 import headers as hd
@@ -12,6 +13,7 @@ class DataLoader(object):
         для обновления данных сроков поставок
     """
     def __init__(self):
+        self.__connect = db.connect('server.db')
         self._headers = {
             'Content-type': 'application/json',
         }
@@ -52,39 +54,51 @@ class DataLoader(object):
             format=hd.DATE_FORMAT['from_service']
         )
 
+    @staticmethod
+    def __get_first_last_date(data_frame, arg1, arg2):
+        return datetime.datetime.strptime(
+            data_frame.values.tolist()[arg1][arg2],
+            hd.DATE_FORMAT['from_service']
+        )
+
+    @staticmethod
+    def __get_days_interval(first_date, last_date):
+        return abs(last_date - first_date).days
+
+    @staticmethod
+    def __wrapper_sort(list_df):
+        for df in list_df:
+            df.sort_values(by=['date_receipt'], inplace=True)
+
     def __update_date(self, data_frame):
         lst = datetime.datetime.strptime(
-            data_frame.values.tolist()[-1][0],
-            hd.DATE_FORMAT['from_service']
+            data_frame.values.tolist()[-1][0], hd.DATE_FORMAT['from_service']
         )
         self._data["НачалоПериода"] = str(
-            datetime.datetime.strftime(
-                lst + timedelta(days=1),
-                hd.DATE_FORMAT['to_service']
-            )
+            datetime.datetime.strftime(lst + timedelta(days=1), hd.DATE_FORMAT['to_service'])
         )
-        self._data["КонецПериода"] = str(
-            (datetime.date.today() + timedelta(days=1)).strftime(
-                hd.DATE_FORMAT['to_service']
-            )
-        )
+        self._data["КонецПериода"] = str(datetime.date.today().strftime(hd.DATE_FORMAT['to_service']))
 
-    def __update_datasets(self, deliv_old, deliv_new):
-        deliv_old.sort_values(by=['date_receipt'], inplace=True)
-        deliv_new.sort_values(by=['date_receipt'], inplace=True)
-
-        first_date = datetime.datetime.strptime(
-            deliv_old.values.tolist()[0][0],
-            hd.DATE_FORMAT['from_service']
+    def __date_shift_df(self, df_old, df_new):
+        num_days = self.__get_days_interval(
+            self.__get_first_last_date(df_old, -1, 0),
+            self.__get_first_last_date(df_new, -1, 0)
         )
-        self.__create_cutdate(deliv_old, deliv_old.date_receipt)
-        time_peek = first_date + timedelta(weeks=1)
-        deliv_old = deliv_old[deliv_old['cut_date'] >= time_peek]
+        self.__create_cutdate(df_old, df_old.date_receipt)
+        time_peek = self.__get_first_last_date(df_old, 0, 0) + timedelta(days=num_days)
+        deliv_old = df_old[df_old['cut_date'] >= time_peek]
         del deliv_old['cut_date']
+        return deliv_old.append(df_new)
 
-        deliv_new = deliv_old.append(deliv_new)
-        deliv_new.to_csv(hd.PATH_DATA['delivery_old.csv'], index=False)
+    def __update_datasets(self, deliv_old, deliv_new,
+                          table_name='delivery_time'):
+        # Остсортируем по дате и обновим датасет
+        self.__wrapper_sort([deliv_old, deliv_new])
+        deliv_new = self.__date_shift_df(deliv_old, deliv_new)
 
+        # Запишем обновленный датасет в базу
+        self.__connect.execute(hd.CMD_DB['update_table_deliv_time'])
+        deliv_new.to_sql(table_name, self.__connect, index=False)
         return deliv_new
 
     def __manual_loading_lost_data(self):
@@ -101,7 +115,12 @@ class DataLoader(object):
 
     def load_data(self, logger):
         # Заружаем старый датасет со сроками поставок + для графиков на 1hmm
-        deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
+        deliv_old = pd.read_sql(hd.CMD_DB['read_delivery_old'], self.__connect)
+        # deliv_old = pd.read_csv(hd.PATH_DATA['delivery_old.csv'], low_memory=False, sep=',')
+
+        # Запишем обновленный датасет в базу
+        # self.__connect.execute(hd.CMD_DB['update_table_deliv_time'])
+        # deliv_old.to_sql('delivery_time', self.__connect, index=False)
 
         # Обновим дату загружаемых данных
         self.__update_date(deliv_old)
@@ -118,9 +137,11 @@ class DataLoader(object):
             # Сделаем смещение train_old на train_new
             deliv = self.__update_datasets(deliv_old, deliv_new)
 
+            self.__connect.close()
             logger.info(hd.LOG_MESSAGES['successful_download'])
             return deliv, True, self._data["КонецПериода"]
 
         except ValueError:
+            self.__connect.close()
             logger.info(hd.LOG_MESSAGES['empty_new_data'])
             return deliv_old, False, self._data["КонецПериода"]
