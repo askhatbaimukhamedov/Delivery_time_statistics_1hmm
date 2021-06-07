@@ -4,6 +4,7 @@ import headers as hd
 import datetime
 import time
 import requests
+from datetime import timedelta
 from requests.auth import HTTPBasicAuth
 
 
@@ -92,13 +93,13 @@ class StatDeliveryTime(object):
     @staticmethod
     def __add_for_graphics(stat, lst_date):
         stat['date'] = time.mktime(
-            datetime.datetime.strptime(lst_date, "%d.%m.%Y %H:%M:%S").timetuple()
+            datetime.datetime.strptime(
+                lst_date, hd.DATE_FORMAT['to_service']).timetuple()
         ) * 1000
 
         stat['isArrivalOnly'] = True
         stat['lowDates'] = np.maximum(stat.p10Dates, stat.lowDates)
         stat['highDates'] = np.maximum(stat.highDates, stat.lowDates)
-
         return stat
 
     def __eval_percentile(self, delivery, list_by_group, p_min, p_max):
@@ -161,6 +162,17 @@ class StatDeliveryTime(object):
         delivery = delivery.loc[delivery['delivery'] > 0]
         return delivery
 
+    @staticmethod
+    def __pick_last_month(delivery, lst_date):
+        lst = datetime.datetime.strptime(lst_date, hd.DATE_FORMAT['to_service'])
+        date_peek = datetime.datetime.strftime(
+            lst - timedelta(days=31),
+            hd.DATE_FORMAT['to_service']
+        )
+        date_peek = datetime.datetime.strptime(date_peek, hd.DATE_FORMAT['to_service'])
+        delivery = delivery.loc[delivery['date_receipt'] >= date_peek]
+        return delivery
+
     def __create_aggregation(self, delivery):
         grid = []
         for fabricator in delivery['guid_manufactorer'].unique():
@@ -183,7 +195,8 @@ class StatDeliveryTime(object):
             grid.append(statistics)
         return grid
 
-    def get_statistics(self, delivery_time, logger):
+    def get_statistics(self, delivery, lst_date, logger):
+        delivery_time = delivery.copy(deep=True)
         self.__make_offer(delivery_time)
 
         # Предварительная подготовка датасета
@@ -193,6 +206,7 @@ class StatDeliveryTime(object):
             new_warehouse_guid='PlacementToId',
             new_fabricator_guid='PlacementFromId'
         )
+        delivery_time = self.__pick_last_month(delivery_time, lst_date)
 
         # Посчитаем статистику и отправим на сайт 1hmm
         statistics = self.__eval_statistics(

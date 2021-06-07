@@ -9,6 +9,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 from logging.handlers import TimedRotatingFileHandler
 
+import pandas as pd
+
 
 class PreProcessingError(Exception):
     """ Ошибки возникающие при
@@ -45,12 +47,42 @@ class ServiceLogger(object):
         return logger
 
 
+# def test_recommend_to_1c():
+#     def send_predictions(path):
+#         response = requests.post(
+#             'http://185.63.190.188/trade82new/hs/Service/SetPurchaseRecomendation/',
+#             auth=HTTPBasicAuth('Web', 'WebMarket'),
+#             data=open(path, 'rb'),
+#             headers={'Content-type': 'application/json'}
+#         )
+#         if response.ok:
+#             print(f'успешно отправлен {path[28:]}!')
+#
+#     for item in range(11, 152):
+#         path_json = f'../../ordersprediction/tmp/output{item}.json'
+#         send_predictions(path_json)
+
+def test_recommend_to_1c():
+    def send_predictions(path):
+        response = requests.post(
+            'http://185.63.190.188/trade82new/hs/Service/SetPurchaseRecomendation/',
+            auth=HTTPBasicAuth('Web', 'WebMarket'),
+            data=open(path, 'rb'),
+            headers={'Content-type': 'application/json'}
+        )
+        if response.ok:
+            print(f'успешно отправлен {path[28:]}!')
+
+    send_predictions('../../ordersprediction/tmp/output.json')
+
+
 def main():
     data_loader = loader.DataLoader()
     delivery_time = deliver.StatDeliveryTime()
     indent_log = ServiceLogger().get_logger('indent', hd.INDENT_FORMAT_LOG)
     logger = ServiceLogger().get_logger(hd.LOG_MESSAGES['service_name'], hd.BASE_FORMAT_LOG)
 
+    # test_recommend_to_1c()
     indent_log.info('just indent')
     logger.info(hd.LOG_MESSAGES['start_service'])
 
@@ -59,7 +91,7 @@ def main():
 
     if is_new_data:
         # Отправим статистику по срокам доставок + графики
-        delivery_time.get_statistics(deliv, logger)
+        delivery_time.get_statistics(deliv, lst_date, logger)
         delivery_time.get_stat_for_graphics(deliv, lst_date, logger)
 
     logger.info(hd.LOG_MESSAGES['stop_service'])
